@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oráculo - Painel do Operador</title>
+    <link rel="stylesheet" href="operador.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+    <canvas id="particles"></canvas>
+
+    <div class="container">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-left">
+                <img src="logo.jpeg" alt="Logo" class="logo">
+                <div class="header-info">
+                    <h1 class="header-title">Oráculo - Painel do Operador</h1>
+                    <p class="header-subtitle">Gerenciamento de Equipamentos</p>
+                </div>
+            </div>
+            <a href="tela porteiro\porteiro.html" class="btn-modo-porteiro">
+                <i class="fa-solid fa-user"></i> Modo Porteiro
+            </a>
+        </header>
+
+        <!-- LAYOUT PRINCIPAL -->
+        <div class="main-layout">
+            <!-- SIDEBAR -->
+            <aside class="sidebar">
+                <nav class="nav">
+                    <button class="nav-item active" data-page="dashboard">
+                        <i class="fa-solid fa-chart-line"></i> Dashboard
+                    </button>
+                    <button class="nav-item" data-page="status">
+                        <i class="fa-solid fa-signal"></i> Status Equipamentos
+                    </button>
+                    <button class="nav-item" data-page="setores">
+                        <i class="fa-solid fa-building"></i> Setores
+                    </button>
+                    <button class="nav-item" data-page="locais">
+                        <i class="fa-solid fa-map-marker-alt"></i> Locais
+                    </button>
+                    <button class="nav-item" data-page="equipamentos">
+                        <i class="fa-solid fa-server"></i> Equipamentos
+                    </button>
+                    <button class="nav-item" data-page="subequipamentos">
+                        <i class="fa-solid fa-cogs"></i> Subequipamentos
+                    </button>
+                    <button class="nav-item" data-page="chamados">
+                        <i class="fa-solid fa-ticket-alt"></i> Chamados
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- CONTEÚDO PRINCIPAL -->
+            <main class="content">
+
+                <!-- DASHBOARD -->
+                <section id="page-dashboard" class="page active">
+                    <div class="resumo-container">
+                        <div class="resumo-card total">
+                            <div class="resumo-icon">
+                                <i class="fa-solid fa-server"></i>
+                            </div>
+                            <div class="resumo-info">
+                                <div class="resumo-label">Total</div>
+                                <div class="resumo-valor" id="dash-total">0</div>
+                            </div>
+                        </div>
+                        <div class="resumo-card online">
+                            <div class="resumo-icon">
+                                <i class="fa-solid fa-check-circle"></i>
+                            </div>
+                            <div class="resumo-info">
+                                <div class="resumo-label">Online</div>
+                                <div class="resumo-valor" id="dash-online">0</div>
+                            </div>
+                        </div>
+                        <div class="resumo-card alerta">
+                            <div class="resumo-icon">
+                                <i class="fa-solid fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="resumo-info">
+                                <div class="resumo-label">Alerta</div>
+                                <div class="resumo-valor" id="dash-alerta">0</div>
+                            </div>
+                        </div>
+                        <div class="resumo-card offline">
+                            <div class="resumo-icon">
+                                <i class="fa-solid fa-times-circle"></i>
+                            </div>
+                            <div class="resumo-info">
+                                <div class="resumo-label">Offline</div>
+                                <div class="resumo-valor" id="dash-offline">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="dashboard-equipamentos" class="grid-equipamentos-dash"></div>
+                </section>
+
+                <!-- STATUS EQUIPAMENTOS -->
+                <section id="page-status" class="page">
+                    <h2 class="page-title">Status dos Equipamentos</h2>
+                    <div id="status-locais" class="grid-locais"></div>
+                    <div id="status-equipamentos" class="grid-equipamentos-status" style="display:none;"></div>
+                </section>
+
+                <!-- SETORES -->
+                <section id="page-setores" class="page">
+                    <div class="page-header">
+                        <h2 class="page-title">Setores</h2>
+                        <button class="btn-add" onclick="abrirModalSetor()">
+                            <i class="fa-solid fa-plus"></i> Novo Setor
+                        </button>
+                    </div>
+                    <div id="lista-setores" class="lista-items"></div>
+                </section>
+
+                <!-- LOCAIS -->
+                <section id="page-locais" class="page">
+                    <div class="page-header">
+                        <h2 class="page-title">Locais</h2>
+                        <button class="btn-add" onclick="abrirModalLocal()">
+                            <i class="fa-solid fa-plus"></i> Novo Local
+                        </button>
+                    </div>
+                    <div id="lista-locais" class="lista-items"></div>
+                </section>
+
+                <!-- EQUIPAMENTOS -->
+                <section id="page-equipamentos" class="page">
+                    <div class="page-header">
+                        <h2 class="page-title">Equipamentos</h2>
+                        <button class="btn-add" onclick="abrirModalEquipamento()">
+                            <i class="fa-solid fa-plus"></i> Novo Equipamento
+                        </button>
+                    </div>
+                    <div id="lista-equipamentos" class="lista-items"></div>
+                </section>
+
+                <!-- SUBEQUIPAMENTOS -->
+                <section id="page-subequipamentos" class="page">
+                    <div class="page-header">
+                        <h2 class="page-title">Subequipamentos</h2>
+                        <button class="btn-add" onclick="abrirModalSubequipamento()">
+                            <i class="fa-solid fa-plus"></i> Novo Subequipamento
+                        </button>
+                    </div>
+                    <div id="lista-subequipamentos" class="lista-items"></div>
+                </section>
+
+                <!-- CHAMADOS -->
+                <section id="page-chamados" class="page">
+                    <h2 class="page-title">Chamados Abertos</h2>
+                    <div id="lista-chamados" class="lista-chamados"></div>
+                </section>
+
+            </main>
+
+            <!-- SIDEBAR OFFLINE (NOVA!) -->
+            <aside class="sidebar-offline">
+                <div class="sidebar-offline-header">
+                    <i class="fa-solid fa-exclamation-circle"></i>
+                    <h3>Indisponibilidade</h3>
+                </div>
+
+                <!-- Impacto no Sistema -->
+                <div class="impacto-sistema">
+                    <div class="impacto-label">Impacto no Sistema</div>
+                    <div class="impacto-valor" id="impacto-percentual">0%</div>
+                    <div class="impacto-barra">
+                        <div class="impacto-barra-fill" id="impacto-barra-fill"></div>
+                    </div>
+                    <div class="impacto-detalhes" id="impacto-detalhes"></div>
+                </div>
+
+                <!-- Equipamentos Offline Agora -->
+                <div class="offline-section">
+                    <div class="offline-section-title">
+                        <i class="fa-solid fa-power-off"></i>
+                        Offline Agora
+                    </div>
+                    <div id="lista-offline-agora" class="lista-offline"></div>
+                </div>
+
+                <!-- Histórico 24h -->
+                <div class="offline-section">
+                    <div class="offline-section-title">
+                        <i class="fa-solid fa-history"></i>
+                        Histórico 24h
+                    </div>
+                    <div id="lista-historico-24h" class="lista-offline"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- MODAL SETOR -->
+    <div id="modal-setor" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-setor-title">Novo Setor</h3>
+                <button class="modal-close" onclick="fecharModal('modal-setor')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome do Setor:</label>
+                    <input type="text" id="input-setor-nome" placeholder="Ex: Portarias">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="fecharModal('modal-setor')">Cancelar</button>
+                <button class="btn-primary" onclick="salvarSetor()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LOCAL -->
+    <div id="modal-local" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-local-title">Novo Local</h3>
+                <button class="modal-close" onclick="fecharModal('modal-local')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome do Local:</label>
+                    <input type="text" id="input-local-nome" placeholder="Ex: Portaria P1">
+                </div>
+                <div class="form-group">
+                    <label>Setor:</label>
+                    <select id="input-local-setor">
+                        <option value="">Selecione um setor</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="fecharModal('modal-local')">Cancelar</button>
+                <button class="btn-primary" onclick="salvarLocal()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EQUIPAMENTO -->
+    <div id="modal-equipamento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-equipamento-title">Novo Equipamento</h3>
+                <button class="modal-close" onclick="fecharModal('modal-equipamento')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome do Equipamento:</label>
+                    <input type="text" id="input-equipamento-nome" placeholder="Ex: Facial Entrada P1">
+                </div>
+                <div class="form-group">
+                    <label>Setor:</label>
+                    <select id="input-equipamento-setor" onchange="filtrarLocaisPorSetor()">
+                        <option value="">Selecione um setor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Local:</label>
+                    <select id="input-equipamento-local">
+                        <option value="">Selecione um local</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>IP:</label>
+                    <input type="text" id="input-equipamento-ip" placeholder="Ex: 192.168.1.100">
+                </div>
+                <div class="form-group">
+                    <label>Porta:</label>
+                    <input type="text" id="input-equipamento-porta" placeholder="Ex: 80,443">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="fecharModal('modal-equipamento')">Cancelar</button>
+                <button class="btn-primary" onclick="salvarEquipamento()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SUBEQUIPAMENTO -->
+    <div id="modal-subequipamento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-subequipamento-title">Novo Subequipamento</h3>
+                <button class="modal-close" onclick="fecharModal('modal-subequipamento')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome do Subequipamento:</label>
+                    <input type="text" id="input-subequipamento-nome" placeholder="Ex: Catraca 1">
+                </div>
+                <div class="form-group">
+                    <label>Setor:</label>
+                    <select id="input-subequipamento-setor" onchange="filtrarLocaisPorSetorSub()">
+                        <option value="">Selecione um setor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Local:</label>
+                    <select id="input-subequipamento-local" onchange="filtrarEquipamentosPorLocal()">
+                        <option value="">Selecione um local</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Equipamento:</label>
+                    <select id="input-subequipamento-equipamento">
+                        <option value="">Selecione um equipamento</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="fecharModal('modal-subequipamento')">Cancelar</button>
+                <button class="btn-primary" onclick="salvarSubequipamento()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL GRÁFICO (AJUSTADO!) -->
+    <div id="modal-grafico" class="modal">
+        <div class="modal-content modal-grafico">
+            <div class="modal-header">
+                <h3 id="modal-grafico-title">Histórico do Equipamento</h3>
+                <button class="modal-close" onclick="fecharModal('modal-grafico')">×</button>
+            </div>
+            <div class="modal-body modal-grafico-body">
+                <div class="grafico-controls">
+                    <button class="btn-periodo active" onclick="mudarPeriodo('30min')">30 min</button>
+                    <button class="btn-periodo" onclick="mudarPeriodo('1h')">1 hora</button>
+                    <button class="btn-periodo" onclick="mudarPeriodo('24h')">24 horas</button>
+                    <button class="btn-periodo" onclick="mudarPeriodo('7d')">7 dias</button>
+                    <button class="btn-periodo" onclick="mudarPeriodo('30d')">30 dias</button>
+                </div>
+                <div class="grafico-container">
+                    <canvas id="grafico-canvas"></canvas>
+                </div>
+                <div id="grafico-stats" class="grafico-stats"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="operador.js"></script>
+</body>
+
+</html>
