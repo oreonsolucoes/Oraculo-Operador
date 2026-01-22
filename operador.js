@@ -1,7 +1,3 @@
-// ========== IMPORTAR FIREBASE ==========
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getDatabase, ref, onValue, set, push, remove, get } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
-
 // ========== CONFIGURAÇÃO FIREBASE ==========
 const firebaseConfig = {
     apiKey: "AIzaSyDvvW3MMxvVNb7PyhYbaR3mdsygfcy0Ghw",
@@ -13,8 +9,8 @@ const firebaseConfig = {
     measurementId: "G-K2DQPQEPSC"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
 // ========== CONSTANTES ==========
 const CONDOMINIO_ID = "cond_eucaliptos";
@@ -35,6 +31,7 @@ let editandoTipo = null;
 let localSelecionadoStatus = null;
 let periodoGraficoAtual = '30min';
 let equipamentoGraficoAtual = null;
+let filtroAtualDashboard = 'total';
 
 // ========== SISTEMA DE PARTÍCULAS ==========
 class ParticleSystem {
@@ -108,6 +105,7 @@ class ParticleSystem {
 
 // ========== INICIALIZAÇÃO ==========
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Inicializando sistema...');
     new ParticleSystem();
     inicializarNavegacao();
     inicializarListeners();
@@ -134,50 +132,58 @@ function inicializarNavegacao() {
 
 // ========== LISTENERS FIREBASE ==========
 function inicializarListeners() {
+    console.log('📡 Conectando ao Firebase...');
+
     // Setores
-    onValue(ref(db, `catalogo/${CONDOMINIO_ID}/setores`), (snapshot) => {
+    db.ref(`catalogo/${CONDOMINIO_ID}/setores`).on('value', (snapshot) => {
         setoresData = snapshot.val() || {};
+        console.log('✅ Setores carregados:', Object.keys(setoresData).length);
         renderSetores();
         atualizarSelectSetores();
     });
 
     // Locais
-    onValue(ref(db, `catalogo/${CONDOMINIO_ID}/locais`), (snapshot) => {
+    db.ref(`catalogo/${CONDOMINIO_ID}/locais`).on('value', (snapshot) => {
         locaisData = snapshot.val() || {};
+        console.log('✅ Locais carregados:', Object.keys(locaisData).length);
         renderLocais();
         renderLocaisStatus();
     });
 
     // Equipamentos
-    onValue(ref(db, `catalogo/${CONDOMINIO_ID}/equipamentos`), (snapshot) => {
+    db.ref(`catalogo/${CONDOMINIO_ID}/equipamentos`).on('value', (snapshot) => {
         equipamentosData = snapshot.val() || {};
+        console.log('✅ Equipamentos carregados:', Object.keys(equipamentosData).length);
         renderEquipamentos();
-        atualizarSelectEquipamentos();
+        renderDashboard();
     });
 
     // Subequipamentos
-    onValue(ref(db, `catalogo/${CONDOMINIO_ID}/subequipamentos`), (snapshot) => {
+    db.ref(`catalogo/${CONDOMINIO_ID}/subequipamentos`).on('value', (snapshot) => {
         subequipamentosData = snapshot.val() || {};
+        console.log('✅ Subequipamentos carregados:', Object.keys(subequipamentosData).length);
         renderSubequipamentos();
     });
 
     // Monitoramento
-    onValue(ref(db, `monitoramento/${CONDOMINIO_ID}/stats/dispositivos`), (snapshot) => {
+    db.ref(`monitoramento/${CONDOMINIO_ID}/stats/dispositivos`).on('value', (snapshot) => {
         monitoramentoData = snapshot.val() || {};
+        console.log('✅ Monitoramento atualizado:', Object.keys(monitoramentoData).length);
         renderDashboard();
         renderStatusEquipamentos();
         atualizarSidebarOffline();
     });
 
     // Chamados
-    onValue(ref(db, `chamados/abertos`), (snapshot) => {
+    db.ref(`chamados/abertos`).on('value', (snapshot) => {
         chamadosData = snapshot.val() || {};
+        console.log('✅ Chamados carregados:', Object.keys(chamadosData).length);
         renderDashboard();
         renderChamados();
     });
 
-    // Histórico Offline (NOVO!)
-    onValue(ref(db, `historico_offline/${CONDOMINIO_ID}`), (snapshot) => {
+    // Histórico Offline
+    db.ref(`historico_offline/${CONDOMINIO_ID}`).on('value', (snapshot) => {
         historicoOfflineData = snapshot.val() || {};
         atualizarSidebarOffline();
     });
@@ -219,7 +225,13 @@ function formatarDataHora(timestamp) {
     return data.toLocaleString('pt-BR');
 }
 
-// ========== SIDEBAR OFFLINE (NOVA!) ==========
+// ========== FILTRO DASHBOARD ==========
+window.filtrarDashboard = function (filtro) {
+    filtroAtualDashboard = filtro;
+    renderDashboard();
+};
+
+// ========== SIDEBAR OFFLINE ==========
 function atualizarSidebarOffline() {
     const agora = secondsNow();
     const equipamentosArray = Object.entries(equipamentosData);
@@ -274,7 +286,7 @@ function atualizarSidebarOffline() {
     const historico24h = Object.entries(historicoOfflineData)
         .filter(([id, evento]) => {
             const tempoDecorrido = agora - (evento.timestamp || 0);
-            return tempoDecorrido <= 86400; // 24 horas
+            return tempoDecorrido <= 86400;
         })
         .sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0))
         .slice(0, 10);
@@ -308,6 +320,7 @@ function renderDashboard() {
     let totalAlerta = 0;
     let totalOffline = 0;
 
+    // Calcular totais
     equipamentosArray.forEach(([id, equip]) => {
         const dispositivo = monitoramentoData[equip.nome];
         const temChamado = chamadosData[equip.nome];
@@ -325,19 +338,40 @@ function renderDashboard() {
         }
     });
 
+    // Atualizar cards de resumo
     document.getElementById('dash-total').textContent = equipamentosArray.length;
     document.getElementById('dash-online').textContent = totalOnline;
     document.getElementById('dash-alerta').textContent = totalAlerta;
     document.getElementById('dash-offline').textContent = totalOffline;
 
+    // Filtrar equipamentos
+    let equipamentosFiltrados = equipamentosArray;
+    if (filtroAtualDashboard !== 'total') {
+        equipamentosFiltrados = equipamentosArray.filter(([id, equip]) => {
+            const dispositivo = monitoramentoData[equip.nome];
+            const temChamado = chamadosData[equip.nome];
+            const online = computeEffectiveOnline(dispositivo);
+            const lat = dispositivo?.lat || 0;
+
+            if (filtroAtualDashboard === 'online') {
+                return online && !temChamado && lat <= LIMIAR_MS;
+            } else if (filtroAtualDashboard === 'alerta') {
+                return temChamado || (online && lat > LIMIAR_MS);
+            } else if (filtroAtualDashboard === 'offline') {
+                return !online && !temChamado;
+            }
+            return true;
+        });
+    }
+
     // Renderizar cards de equipamentos
     const container = document.getElementById('dashboard-equipamentos');
-    if (equipamentosArray.length === 0) {
-        container.innerHTML = '<p style="color: #94a3b8;">Nenhum equipamento cadastrado.</p>';
+    if (equipamentosFiltrados.length === 0) {
+        container.innerHTML = '<p style="color: #94a3b8;">Nenhum equipamento nesta categoria.</p>';
         return;
     }
 
-    container.innerHTML = equipamentosArray.map(([id, equip]) => {
+    container.innerHTML = equipamentosFiltrados.map(([id, equip]) => {
         const dispositivo = monitoramentoData[equip.nome];
         const temChamado = chamadosData[equip.nome];
         const color = computeColor(dispositivo, temChamado);
@@ -501,7 +535,7 @@ function renderStatusEquipamentos() {
     container.innerHTML = html;
 }
 
-// ========== GRÁFICO (PLACEHOLDER - IMPLEMENTAR CHART.JS) ==========
+// ========== GRÁFICO ==========
 window.abrirGrafico = function (nomeEquipamento) {
     equipamentoGraficoAtual = nomeEquipamento;
     document.getElementById('modal-grafico-title').textContent = `Histórico: ${nomeEquipamento}`;
@@ -517,7 +551,6 @@ window.mudarPeriodo = function (periodo) {
 };
 
 function carregarDadosGrafico() {
-    // IMPLEMENTAR: Buscar dados históricos do Firebase e renderizar com Chart.js
     const statsContainer = document.getElementById('grafico-stats');
     statsContainer.innerHTML = `
         <div class="stat-item">
@@ -538,7 +571,6 @@ function carregarDadosGrafico() {
         </div>
     `;
 
-    // Placeholder para o gráfico
     const canvas = document.getElementById('grafico-canvas');
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#94a3b8';
@@ -551,6 +583,8 @@ function carregarDadosGrafico() {
 function renderSetores() {
     const container = document.getElementById('lista-setores');
     const setoresArray = Object.entries(setoresData);
+
+    console.log('🔄 Renderizando setores:', setoresArray.length);
 
     if (setoresArray.length === 0) {
         container.innerHTML = '<p style="color: #94a3b8;">Nenhum setor cadastrado.</p>';
@@ -594,21 +628,30 @@ window.editarSetor = function (id) {
     document.getElementById('modal-setor').style.display = 'flex';
 };
 
-window.salvarSetor = async function () {
+window.salvarSetor = function () {
     const nome = document.getElementById('input-setor-nome').value.trim();
     if (!nome) {
         alert('Preencha o nome do setor');
         return;
     }
 
-    const id = editandoId || push(ref(db, `catalogo/${CONDOMINIO_ID}/setores`)).key;
-    await set(ref(db, `catalogo/${CONDOMINIO_ID}/setores/${id}`), { nome });
-    fecharModal('modal-setor');
+    const id = editandoId || db.ref(`catalogo/${CONDOMINIO_ID}/setores`).push().key;
+    console.log('💾 Salvando setor:', id, nome);
+
+    db.ref(`catalogo/${CONDOMINIO_ID}/setores/${id}`).set({ nome })
+        .then(() => {
+            console.log('✅ Setor salvo com sucesso!');
+            fecharModal('modal-setor');
+        })
+        .catch((error) => {
+            console.error('❌ Erro ao salvar setor:', error);
+            alert('Erro ao salvar setor: ' + error.message);
+        });
 };
 
-window.excluirSetor = async function (id) {
+window.excluirSetor = function (id) {
     if (!confirm('Deseja realmente excluir este setor?')) return;
-    await remove(ref(db, `catalogo/${CONDOMINIO_ID}/setores/${id}`));
+    db.ref(`catalogo/${CONDOMINIO_ID}/setores/${id}`).remove();
 };
 
 // ========== LOCAIS ==========
@@ -664,7 +707,7 @@ window.editarLocal = function (id) {
     document.getElementById('modal-local').style.display = 'flex';
 };
 
-window.salvarLocal = async function () {
+window.salvarLocal = function () {
     const nome = document.getElementById('input-local-nome').value.trim();
     const setorId = document.getElementById('input-local-setor').value;
 
@@ -673,14 +716,21 @@ window.salvarLocal = async function () {
         return;
     }
 
-    const id = editandoId || push(ref(db, `catalogo/${CONDOMINIO_ID}/locais`)).key;
-    await set(ref(db, `catalogo/${CONDOMINIO_ID}/locais/${id}`), { nome, setorId });
-    fecharModal('modal-local');
+    const id = editandoId || db.ref(`catalogo/${CONDOMINIO_ID}/locais`).push().key;
+    db.ref(`catalogo/${CONDOMINIO_ID}/locais/${id}`).set({ nome, setorId })
+        .then(() => {
+            console.log('✅ Local salvo com sucesso!');
+            fecharModal('modal-local');
+        })
+        .catch((error) => {
+            console.error('❌ Erro ao salvar local:', error);
+            alert('Erro ao salvar local: ' + error.message);
+        });
 };
 
-window.excluirLocal = async function (id) {
+window.excluirLocal = function (id) {
     if (!confirm('Deseja realmente excluir este local?')) return;
-    await remove(ref(db, `catalogo/${CONDOMINIO_ID}/locais/${id}`));
+    db.ref(`catalogo/${CONDOMINIO_ID}/locais/${id}`).remove();
 };
 
 // ========== EQUIPAMENTOS ==========
@@ -745,7 +795,7 @@ window.editarEquipamento = function (id) {
     document.getElementById('modal-equipamento').style.display = 'flex';
 };
 
-window.salvarEquipamento = async function () {
+window.salvarEquipamento = function () {
     const nome = document.getElementById('input-equipamento-nome').value.trim();
     const localId = document.getElementById('input-equipamento-local').value;
     const ip = document.getElementById('input-equipamento-ip').value.trim();
@@ -756,27 +806,38 @@ window.salvarEquipamento = async function () {
         return;
     }
 
-    const id = editandoId || push(ref(db, `catalogo/${CONDOMINIO_ID}/equipamentos`)).key;
-    await set(ref(db, `catalogo/${CONDOMINIO_ID}/equipamentos/${id}`), { nome, localId, ip, porta });
+    const id = editandoId || db.ref(`catalogo/${CONDOMINIO_ID}/equipamentos`).push().key;
 
-    // Criar entrada no monitoramento
-    await set(ref(db, `monitoramento/${CONDOMINIO_ID}/stats/dispositivos/${nome}`), {
-        ip,
-        porta,
-        status: 'offline',
-        lat: 0,
-        last_update: secondsNow(),
-        status_portas: {}
-    });
+    // Salvar equipamento
+    db.ref(`catalogo/${CONDOMINIO_ID}/equipamentos/${id}`).set({ nome, localId, ip, porta })
+        .then(() => {
+            console.log('✅ Equipamento salvo com sucesso!');
 
-    fecharModal('modal-equipamento');
+            // Criar entrada no monitoramento
+            return db.ref(`monitoramento/${CONDOMINIO_ID}/stats/dispositivos/${nome}`).set({
+                ip,
+                porta,
+                status: 'offline',
+                lat: 0,
+                last_update: secondsNow(),
+                status_portas: {}
+            });
+        })
+        .then(() => {
+            console.log('✅ Entrada de monitoramento criada!');
+            fecharModal('modal-equipamento');
+        })
+        .catch((error) => {
+            console.error('❌ Erro ao salvar equipamento:', error);
+            alert('Erro ao salvar equipamento: ' + error.message);
+        });
 };
 
-window.excluirEquipamento = async function (id) {
+window.excluirEquipamento = function (id) {
     if (!confirm('Deseja realmente excluir este equipamento?')) return;
     const equip = equipamentosData[id];
-    await remove(ref(db, `catalogo/${CONDOMINIO_ID}/equipamentos/${id}`));
-    await remove(ref(db, `monitoramento/${CONDOMINIO_ID}/stats/dispositivos/${equip.nome}`));
+    db.ref(`catalogo/${CONDOMINIO_ID}/equipamentos/${id}`).remove();
+    db.ref(`monitoramento/${CONDOMINIO_ID}/stats/dispositivos/${equip.nome}`).remove();
 };
 
 window.filtrarLocaisPorSetor = function () {
@@ -859,7 +920,7 @@ window.editarSubequipamento = function (id) {
     document.getElementById('modal-subequipamento').style.display = 'flex';
 };
 
-window.salvarSubequipamento = async function () {
+window.salvarSubequipamento = function () {
     const nome = document.getElementById('input-subequipamento-nome').value.trim();
     const equipamentoId = document.getElementById('input-subequipamento-equipamento').value;
 
@@ -868,14 +929,21 @@ window.salvarSubequipamento = async function () {
         return;
     }
 
-    const id = editandoId || push(ref(db, `catalogo/${CONDOMINIO_ID}/subequipamentos`)).key;
-    await set(ref(db, `catalogo/${CONDOMINIO_ID}/subequipamentos/${id}`), { nome, equipamentoId });
-    fecharModal('modal-subequipamento');
+    const id = editandoId || db.ref(`catalogo/${CONDOMINIO_ID}/subequipamentos`).push().key;
+    db.ref(`catalogo/${CONDOMINIO_ID}/subequipamentos/${id}`).set({ nome, equipamentoId })
+        .then(() => {
+            console.log('✅ Subequipamento salvo com sucesso!');
+            fecharModal('modal-subequipamento');
+        })
+        .catch((error) => {
+            console.error('❌ Erro ao salvar subequipamento:', error);
+            alert('Erro ao salvar subequipamento: ' + error.message);
+        });
 };
 
-window.excluirSubequipamento = async function (id) {
+window.excluirSubequipamento = function (id) {
     if (!confirm('Deseja realmente excluir este subequipamento?')) return;
-    await remove(ref(db, `catalogo/${CONDOMINIO_ID}/subequipamentos/${id}`));
+    db.ref(`catalogo/${CONDOMINIO_ID}/subequipamentos/${id}`).remove();
 };
 
 window.filtrarLocaisPorSetorSub = function () {
@@ -942,14 +1010,14 @@ function renderChamados() {
     }).join('');
 }
 
-window.fecharChamado = async function (nomeEquip) {
+window.fecharChamado = function (nomeEquip) {
     if (!confirm('Deseja realmente fechar este chamado?')) return;
 
     const chamado = chamadosData[nomeEquip];
     const agora = secondsNow();
 
     // Mover para histórico
-    await push(ref(db, `chamados/historico`), {
+    db.ref(`chamados/historico`).push({
         ...chamado,
         equipamento: nomeEquip,
         fechadoEm: agora,
@@ -957,7 +1025,7 @@ window.fecharChamado = async function (nomeEquip) {
     });
 
     // Remover de abertos
-    await remove(ref(db, `chamados/abertos/${nomeEquip}`));
+    db.ref(`chamados/abertos/${nomeEquip}`).remove();
 };
 
 // ========== ATUALIZAR SELECTS ==========
@@ -980,10 +1048,6 @@ function atualizarSelectSetores() {
         });
         select.value = valorAtual;
     });
-}
-
-function atualizarSelectEquipamentos() {
-    // Implementar se necessário
 }
 
 // ========== FECHAR MODAL ==========
